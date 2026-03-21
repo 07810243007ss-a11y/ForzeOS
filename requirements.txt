@@ -1,0 +1,16 @@
+﻿tkinterweb
+PyQt5
+pywebview
+psutil
+requests
+pygame
+python-vlc
+moviepy
+pymupdf
+Pillow
+matplotlib
+numpy
+wikipedia
+sounddevice
+soundfile
+PyAudio
