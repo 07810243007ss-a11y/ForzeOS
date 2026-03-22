@@ -119,5 +119,15 @@
     "time": "2026-03-22T22:58:20.610120",
     "user": "admin",
     "result": "success"
+  },
+  {
+    "time": "2026-03-23T00:13:54.077503",
+    "user": "admin",
+    "result": "user_not_found"
+  },
+  {
+    "time": "2026-03-23T00:13:55.107136",
+    "user": "admin",
+    "result": "user_not_found"
   }
 ]

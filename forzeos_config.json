@@ -29,6 +29,45 @@
     },
     "wallpaper_color": "#000000",
     "global_opacity": 0.8,
-    "taskbar_transparent": true
+    "taskbar_transparent": true,
+    "mouse": {
+      "cursor": "arrow",
+      "cursor_theme": "default",
+      "custom_cursor": null,
+      "cursor_size": "medium",
+      "cursor_color": "#FFFFFF",
+      "double_click_speed": 400,
+      "single_click_open": false,
+      "wheel_scroll_lines": 3,
+      "wheel_horizontal": false,
+      "swap_buttons": false,
+      "middle_button_action": "paste",
+      "cursor_shadow": true,
+      "cursor_acceleration": 1.0,
+      "profiles": []
+    }
+  },
+  "assistant": {
+    "modules": {
+      "wikipedia": {
+        "enabled": true
+      }
+    }
+  },
+  "desktop": {
+    "icon_positions": {},
+    "custom_icons": {},
+    "custom_apps": {
+      "ForzeOS Market": "<bound method ForzeOS.open_market of <__main__.ForzeOS object at 0x00000245FAE20A50>>"
+    },
+    "wallpaper": {
+      "image": null,
+      "color": "#000000"
+    },
+    "removed_icons": {},
+    "trash": {},
+    "pinned_taskbar": [
+      "ForzeOS Market"
+    ]
   }
 }
