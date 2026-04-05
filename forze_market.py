@@ -286,7 +286,8 @@ class ForzeOSMarket(tk.Toplevel):
             if self.market_data_path.exists():
                 with open(self.market_data_path, 'r', encoding='utf-8') as f:
                     self.market_data = json.load(f)
-        except Exception:
+        except Exception as e:
+            logger.exception('forze_market.load_market_data failed: %s', e)
             self.market_data = {}
         # ensure template key exists
         try:
@@ -297,10 +298,17 @@ class ForzeOSMarket(tk.Toplevel):
 
     def save_market_data(self):
         try:
-            with open(self.market_data_path, 'w', encoding='utf-8') as f:
+            # atomic write: write to temp file then replace
+            tmp = self.market_data_path.with_suffix(self.market_data_path.suffix + '.tmp')
+            with open(tmp, 'w', encoding='utf-8') as f:
                 json.dump(self.market_data, f, indent=2)
+            try:
+                os.replace(str(tmp), str(self.market_data_path))
+            except Exception:
+                # fallback to rename
+                tmp.rename(self.market_data_path)
         except Exception:
-            pass
+            logger.exception('forze_market.save_market_data failed')
 
     def discover_apps(self):
         """Return list of app dicts with keys: name, path, icon, desc
@@ -315,8 +323,8 @@ class ForzeOSMarket(tk.Toplevel):
                 cached, ts = self._apps_cache
                 if now - ts < 1.0:
                     return list(cached)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception('forze_market.discover_apps cache check failed: %s', e)
 
         # First, include explicit market_data entries
         try:
@@ -352,12 +360,12 @@ class ForzeOSMarket(tk.Toplevel):
         except Exception:
             pass
 
-        return apps
+        # update cache
         try:
-            # update cache
             self._apps_cache = (list(apps), time.time())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.exception('forze_market.discover_apps cache set failed: %s', e)
+
         return apps
 
     # ---------------- UI actions ----------------
@@ -947,11 +955,23 @@ class ForzeOSMarket(tk.Toplevel):
                 self.forze.unregister_window(self)
                 
             # Clean up any scheduled callbacks
-            for after_id in self.tk.call('after', 'info'):
+            try:
+                # querying 'after info' can fail if the Tcl interpreter is
+                # partially torn down; guard against that and ignore errors.
+                infos = None
                 try:
-                    self.after_cancel(after_id)
+                    infos = self.tk.call('after', 'info')
                 except Exception:
-                    pass
+                    infos = None
+                if infos:
+                    for after_id in infos:
+                        try:
+                            # after_cancel can also raise if id is invalid
+                            self.after_cancel(after_id)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
                     
             # Destroy the window
             self.destroy()
