@@ -13,6 +13,7 @@
     "auto_login": false,
     "theme": "dark",
     "companion_ai_personality": "Mizahi",
+    "allow_desktop_shortcuts": true,
     "start_menu_items": [
       "Aggressive Focus"
     ],
@@ -94,11 +95,21 @@
           945,
           127
         ]
+      },
+      "1": {
+        "File Manager": [
+          49,
+          39
+        ]
       }
     },
     "icon_size": 64,
     "wallpapers": {
       "0": {
+        "image": "C:/forzeos/ForzeOS Minimalist Deseni.png",
+        "color": null
+      },
+      "1": {
         "image": "C:/forzeos/ForzeOS Minimalist Deseni.png",
         "color": null
       }
@@ -240,10 +251,158 @@
           "path": "",
           "icon": null
         }
+      ],
+      "1": [
+        {
+          "name": "File Manager",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Notepad",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Calculator",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Terminal",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Paint",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Code Editor",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Settings",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Icon Manager",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "ForzeOS Market",
+          "path": "d:\\forzeos\\forze_market.py",
+          "icon": null
+        },
+        {
+          "name": "Web Browser",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Snake Game",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Chess",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Web Browser",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "PDF Reader",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Gallery",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Music Player",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Music Studio",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Password Manager",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "File Encryption",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Network Scanner",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Tic-Tac-Toe",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Flappy Bird",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Math Tools",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Sticky Notes",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Social Media",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Video Player",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "Video Editor",
+          "path": "",
+          "icon": null
+        },
+        {
+          "name": "ForzeOS Market",
+          "path": "d:\\forzeos\\forze_market.py",
+          "icon": null
+        }
       ]
     },
     "desktop_settings": {
       "0": {
+        "d1_enabled": true,
+        "d1_value": "",
+        "d2_enabled": false,
+        "d2_value": ""
+      },
+      "1": {
         "d1_enabled": true,
         "d1_value": "",
         "d2_enabled": false,
@@ -260,6 +419,10 @@
   },
   "wallpapers": {
     "0": {
+      "image": "C:/forzeos/ForzeOS Minimalist Deseni.png",
+      "color": null
+    },
+    "1": {
       "image": "C:/forzeos/ForzeOS Minimalist Deseni.png",
       "color": null
     }

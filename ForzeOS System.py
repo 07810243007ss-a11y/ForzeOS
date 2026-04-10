@@ -7734,6 +7734,8 @@ class ForzeOS:
         self.desktop_canvas.pack(fill=tk.BOTH, expand=True)
         self.desktop_canvas.configure(bg=wallpaper_color)
 
+        # (No automatic desktop prompt here; user manages shortcut from Settings)
+
         # Initialize icon bookkeeping (prevent GC of PhotoImage and map items)
         self.icon_refs = getattr(self, 'icon_refs', [])
         self.icon_items = getattr(self, 'icon_items', {})  # item_id -> {name, cmd, path}
@@ -26840,6 +26842,80 @@ Sample gallery for demonstration.
             except Exception:
                 logger.exception('Failed to add Audio tab to Settings')
 
+            # Privacy tab: desktop shortcut permission + create button
+            try:
+                privacy_frame = tk.Frame(notebook, bg=self.colors['bg'])
+                notebook.add(privacy_frame, text='Privacy')
+                tk.Label(privacy_frame, text='Privacy & Permissions', bg=self.colors['bg'], fg=self.colors['fg'], font=('Arial', 12, 'bold')).pack(pady=(8,6))
+                s_cfg = self.config.setdefault('settings', {})
+                initial_allow = True if s_cfg.get('allow_desktop_shortcuts') is True else False
+                var_ds = tk.BooleanVar(value=initial_allow)
+
+                state_frame = tk.Frame(privacy_frame, bg=self.colors['bg'])
+                state_frame.pack(fill=tk.X, padx=6, pady=(2,6))
+                tk.Label(state_frame, text='Desktop shortcut permission:', bg=self.colors['bg'], fg=self.colors['fg']).pack(side=tk.LEFT)
+                state_lbl = tk.Label(state_frame, text=('Allowed' if var_ds.get() else 'Not allowed'), bg=self.colors['bg'], fg=self.colors['fg'])
+                state_lbl.pack(side=tk.LEFT, padx=8)
+
+                def _update_state_label():
+                    try:
+                        state_lbl.config(text=('Allowed' if var_ds.get() else 'Not allowed'))
+                    except Exception:
+                        pass
+
+                def _on_toggle_ds():
+                    try:
+                        s = self.config.setdefault('settings', {})
+                        s['allow_desktop_shortcuts'] = bool(var_ds.get())
+                        self.save_config()
+                        _update_state_label()
+                        # If user enabled permission, create shortcut immediately
+                        if var_ds.get():
+                            try:
+                                from forzeos_core import create_desktop_shortcut_and_persist
+                                hk = self.config.get('shortcuts', {}).get('File Manager', 'Ctrl+Alt+F')
+                                ok = create_desktop_shortcut_and_persist(self, name='ForzeOS', hotkey=hk)
+                                try:
+                                    if ok:
+                                        messagebox.showinfo('Kısayol', 'Masaüstü kısayolu oluşturuldu.')
+                                    else:
+                                        messagebox.showwarning('Kısayol', 'Masaüstü kısayolu oluşturulamadı.')
+                                except Exception:
+                                    pass
+                            except Exception:
+                                logger.exception('Failed to create desktop shortcut on enable')
+                    except Exception:
+                        logger.exception('Failed to save desktop shortcut permission')
+
+                chk = tk.Checkbutton(privacy_frame, text='Allow ForzeOS to create desktop shortcuts', variable=var_ds, command=_on_toggle_ds, bg=self.colors['bg'], fg=self.colors['fg'])
+                chk.pack(anchor='w', pady=6, padx=6)
+
+                # Create-now button
+                def _on_create_now():
+                    try:
+                        from forzeos_core import create_desktop_shortcut_and_persist
+                        hk = self.config.get('shortcuts', {}).get('File Manager', 'Ctrl+Alt+F')
+                        ok = create_desktop_shortcut_and_persist(self, name='ForzeOS', hotkey=hk)
+                        if ok:
+                            var_ds.set(True)
+                            _on_toggle_ds()
+                            try:
+                                messagebox.showinfo('Kısayol', 'Masaüstü kısayolu oluşturuldu.')
+                            except Exception:
+                                pass
+                        else:
+                            try:
+                                messagebox.showwarning('Kısayol', 'Masaüstü kısayolu oluşturulamadı.')
+                            except Exception:
+                                pass
+                    except Exception:
+                        logger.exception('Create-now button failed')
+
+                btn = tk.Button(privacy_frame, text='Create Desktop Shortcut Now', bg=self.colors['accent'], fg='white', command=_on_create_now)
+                btn.pack(anchor='w', pady=(4,8), padx=6)
+            except Exception:
+                logger.exception('Failed to add Privacy tab to Settings')
+
             # Login appearance controls
             try:
                 tk.Label(appearance_frame, text='Login Appearance:', bg=self.colors['bg'], fg=self.colors['fg'], font=('Arial', 12, 'bold')).pack(pady=(12,6))
@@ -29111,6 +29187,7 @@ Features: All Premium Applications Enabled
                 self.config['users'][self.current_user]['password'] = hashed
                 self.save_config()
                 messagebox.showinfo("Success", "Password changed successfully!")
+
         except Exception as e:
             messagebox.showerror("Error", f"Failed to change password: {e}")
 

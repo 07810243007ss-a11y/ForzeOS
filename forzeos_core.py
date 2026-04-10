@@ -4,11 +4,18 @@ Core window manager, animation, command palette, and desktop widget helpers
 Designed to integrate non-invasively with the large ForzeOS file.
 """
 import tkinter as tk
+from tkinter import messagebox
 import threading
 import time
 import weakref
 import urllib.request
 import json
+import os
+import sys
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Keep weak refs to managed windows
 _WINDOW_BASE_INSTANCES = weakref.WeakSet()
@@ -726,3 +733,425 @@ def ensure_weather_widget(forze):
         return None
     except Exception:
         return None
+
+
+# ----------------------- Desktop shortcut helper (Windows) -----------------------
+def _get_windows_desktop_path():
+    try:
+        # Prefer winshell/Desktop (handles OneDrive and redirected folders)
+        try:
+            import winshell
+            d = Path(winshell.desktop())
+            if d.exists():
+                return d
+        except Exception:
+            pass
+        # Fallback to USERPROFILE\Desktop to handle common Windows layouts
+        up = os.environ.get('USERPROFILE')
+        if up:
+            d = Path(up) / 'Desktop'
+            if d.exists():
+                return d
+    except Exception:
+        pass
+    # Fallback to home/Desktop
+    return Path.home() / 'Desktop'
+
+
+def create_windows_shortcut(target, shortcut_path, working_dir=None, icon=None, hotkey=None, description=''):
+    """Create a Windows .lnk shortcut. Tries pywin32 (WScript.Shell) first, then winshell if available.
+
+    Returns True on success, False otherwise.
+    """
+    try:
+        import shutil
+        targ_str = str(target)
+        targ_path = None
+        try:
+            targ_path = Path(targ_str)
+        except Exception:
+            targ_path = None
+
+        # Detect Python script targets and prepare launcher+args
+        is_script = False
+        try:
+            if targ_path and targ_path.suffix.lower() in ('.py', '.pyw'):
+                is_script = True
+        except Exception:
+            is_script = False
+
+        if is_script:
+            # Prefer the py launcher, then pythonw/python; otherwise fall back to cmd+python
+            launcher = shutil.which('py') or shutil.which('pythonw.exe') or shutil.which('python.exe')
+            if launcher:
+                lnk_target = str(launcher)
+                lnk_args = f'"{targ_str}"'
+            else:
+                # Use cmd.exe to invoke the user's python alias
+                lnk_target = str(Path(os.environ.get('WINDIR', 'C:\\Windows')) / 'System32' / 'cmd.exe')
+                lnk_args = f'/c python "{targ_str}"'
+        else:
+            lnk_target = targ_str
+            lnk_args = ''
+
+        # Try pywin32 first
+        try:
+            from win32com.client import Dispatch
+            shell = Dispatch('WScript.Shell')
+            lnk = shell.CreateShortcut(str(shortcut_path))
+            lnk.TargetPath = lnk_target
+            if lnk_args:
+                try:
+                    lnk.Arguments = lnk_args
+                except Exception:
+                    pass
+            if working_dir:
+                lnk.WorkingDirectory = str(working_dir)
+            if icon:
+                try:
+                    lnk.IconLocation = str(icon)
+                except Exception:
+                    pass
+            if description:
+                try:
+                    lnk.Description = description
+                except Exception:
+                    pass
+            if hotkey:
+                try:
+                    lnk.Hotkey = hotkey
+                except Exception:
+                    pass
+            try:
+                lnk.Save()
+            except Exception:
+                try:
+                    lnk.save()
+                except Exception:
+                    raise
+            return True
+        except Exception as e_pywin:
+            # Fallback to winshell, using the same launcher+arguments logic
+            try:
+                import winshell
+                launcher = None
+                if is_script:
+                    launcher = shutil.which('py') or shutil.which('pythonw.exe') or shutil.which('python.exe')
+                    if launcher:
+                        winshell.CreateShortcut(str(shortcut_path), str(launcher), Arguments=f'"{targ_str}"', StartIn=str(working_dir) if working_dir else '', Icon=(str(icon) if icon else '', 0), Description=description)
+                    else:
+                        cmd = str(Path(os.environ.get('WINDIR', 'C:\\Windows')) / 'System32' / 'cmd.exe')
+                        winshell.CreateShortcut(str(shortcut_path), cmd, Arguments=f'/c python "{targ_str}"', StartIn=str(working_dir) if working_dir else '', Icon=(str(icon) if icon else '', 0), Description=description)
+                else:
+                    kw = {}
+                    if working_dir:
+                        kw['StartIn'] = str(working_dir)
+                    if icon:
+                        kw['Icon'] = (str(icon), 0) if not isinstance(icon, tuple) else icon
+                    if description:
+                        kw['Description'] = description
+                    winshell.CreateShortcut(str(shortcut_path), str(target), Arguments='', **kw)
+                return True
+            except Exception as e_winsh:
+                logger.debug('pywin32 error: %s', e_pywin)
+                logger.debug('winshell error: %s', e_winsh)
+                return False
+    except Exception:
+        logger.exception('create_windows_shortcut failed')
+        return False
+
+
+def ensure_desktop_shortcut_prompt(name='ForzeOS', hotkey='Ctrl+Alt+F', icon_path=None, forze=None):
+    """If running on Windows, ask for (or respect) a stored permission to
+    create a desktop shortcut for `name`. If permission is granted, attempt
+    to create the .lnk and assign the requested hotkey.
+
+    Behaviour:
+    - If `forze` is provided, read/write the setting at
+      `forze.config['settings']['allow_desktop_shortcuts']` and call
+      `forze.save_config()` to persist changes.
+    - If the setting is True, create the shortcut immediately.
+    - If the setting is False, do nothing.
+    - If the setting is missing/None, prompt the user once and persist
+      their response.
+
+    Returns True if a shortcut was created, False otherwise.
+    """
+    try:
+        if not sys.platform.startswith('win'):
+            return False
+
+        # Read stored permission (prefer ForzeOS instance if provided)
+        perm = None
+        try:
+            if forze is not None:
+                perm = forze.config.get('settings', {}).get('allow_desktop_shortcuts', None)
+            else:
+                # best-effort: try to read a nearby config file if present
+                try:
+                    cfg_path = Path(__file__).parent.parent / 'forzeos_config.json'
+                    if cfg_path.exists():
+                        with open(cfg_path, 'r', encoding='utf-8') as f:
+                            cfg = json.load(f)
+                            perm = cfg.get('settings', {}).get('allow_desktop_shortcuts', None)
+                except Exception:
+                    perm = None
+        except Exception:
+            perm = None
+
+        # If explicitly denied, stop
+        if perm is False:
+            return False
+
+        desktop = _get_windows_desktop_path()
+        shortcut_file = desktop / f"{name}.lnk"
+
+        # Helper to determine target and icon (reuse existing logic)
+        try:
+            if getattr(sys, 'frozen', False):
+                target = Path(sys.executable).resolve()
+            else:
+                target = Path(sys.argv[0]).resolve()
+        except Exception:
+            target = Path.cwd()
+            icon = None
+        if icon_path:
+            icon = Path(icon_path)
+        else:
+            try:
+                cand = Path(__file__).with_name('..').resolve() / 'assets' / 'icons' / 'FORZE_CYBER.png'
+                if cand.exists():
+                    icon = cand
+            except Exception:
+                icon = None
+
+        def _create_shortcut():
+            ok = create_windows_shortcut(target=target, shortcut_path=shortcut_file, working_dir=target.parent if target.is_file() else None, icon=icon, hotkey=hotkey, description=name)
+            if ok:
+                logger.info('Desktop shortcut created: %s', shortcut_file)
+            else:
+                logger.warning('Failed to create desktop shortcut: %s', shortcut_file)
+            return bool(ok)
+
+        # If already allowed, create and return (use persisted helper that handles existing files)
+        if perm is True:
+            return create_desktop_shortcut_and_persist(forze, name=name, hotkey=hotkey, icon_path=icon_path)
+
+        # Permission unknown — ask the user and persist choice
+        created_root = False
+        try:
+            root = tk._default_root
+            if not root:
+                root = tk.Tk()
+                root.withdraw()
+                created_root = True
+        except Exception:
+            root = None
+
+        resp = False
+        try:
+            resp = messagebox.askyesno('Masaüstü Kısayolu', 'ForzeOS masaüstüne bir kısayol oluşturmak istiyor. İzin verilsin mi? (Bu ayarı sonradan Ayarlar uygulamasından değiştirebilirsiniz.)')
+        except Exception:
+            resp = False
+
+        if created_root and root:
+            try:
+                root.destroy()
+            except Exception:
+                pass
+
+        # Persist the user's decision if we have a ForzeOS instance
+        try:
+            if forze is not None:
+                s = forze.config.setdefault('settings', {})
+                s['allow_desktop_shortcuts'] = bool(resp)
+                try:
+                    forze.save_config()
+                except Exception:
+                    pass
+            else:
+                try:
+                    cfg_path = Path(__file__).parent.parent / 'forzeos_config.json'
+                    if cfg_path.exists():
+                        with open(cfg_path, 'r', encoding='utf-8') as f:
+                            cfg = json.load(f)
+                    else:
+                        cfg = {}
+                    cfg.setdefault('settings', {})['allow_desktop_shortcuts'] = bool(resp)
+                    with open(cfg_path, 'w', encoding='utf-8') as f:
+                        json.dump(cfg, f, indent=2, ensure_ascii=False)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        if not resp:
+            return False
+
+        return create_desktop_shortcut_and_persist(forze, name=name, hotkey=hotkey, icon_path=icon_path)
+    except Exception:
+        logger.exception('ensure_desktop_shortcut_prompt failed')
+        return False
+    
+
+
+def create_desktop_shortcut_and_persist(forze, name='ForzeOS', hotkey='Ctrl+Alt+F', icon_path=None):
+    """Create a desktop shortcut immediately and persist the permission in
+    `forze.config['settings']['allow_desktop_shortcuts'] = True` if successful.
+
+    Returns True on success, False otherwise.
+    """
+    try:
+        if not sys.platform.startswith('win'):
+            return False
+
+        # Determine target
+        try:
+            if getattr(sys, 'frozen', False):
+                target = Path(sys.executable).resolve()
+            else:
+                target = Path(sys.argv[0]).resolve()
+        except Exception:
+            target = Path.cwd()
+
+        # Determine icon
+        icon = None
+        if icon_path:
+            try:
+                icon = Path(icon_path)
+            except Exception:
+                icon = None
+        else:
+            try:
+                cand = Path(__file__).with_name('..').resolve() / 'assets' / 'icons' / 'FORZE_CYBER.png'
+                if cand.exists():
+                    icon = cand
+            except Exception:
+                icon = None
+
+        desktop = _get_windows_desktop_path()
+        shortcut_file = desktop / f"{name}.lnk"
+
+        # If already exists, prompt user: Replace / Choose different location / Cancel
+        if shortcut_file.exists():
+            created_root = False
+            try:
+                root = tk._default_root
+                if not root:
+                    root = tk.Tk()
+                    root.withdraw()
+                    created_root = True
+            except Exception:
+                root = None
+
+            try:
+                msg = f"Masaüstünde '{name}.lnk' zaten var. Üzerine yazmak ister misiniz?\n\n'Evet' = Üzerine yaz, 'Hayır' = Farklı bir isim/konum seç, 'İptal' = vazgeç."
+                resp = messagebox.askyesnocancel('Kısayol zaten var', msg)
+            except Exception:
+                resp = None
+
+            if created_root and root:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
+
+            # Cancel
+            if resp is None:
+                return False
+
+            # Replace
+            if resp is True:
+                try:
+                    try:
+                        shortcut_file.unlink()
+                    except Exception:
+                        try:
+                            os.remove(str(shortcut_file))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                ok = create_windows_shortcut(target=target, shortcut_path=shortcut_file, working_dir=target.parent if target.is_file() else None, icon=icon, hotkey=hotkey, description=name)
+                if ok:
+                    try:
+                        s = forze.config.setdefault('settings', {})
+                        s['allow_desktop_shortcuts'] = True
+                        try:
+                            forze.save_config()
+                        except Exception:
+                            pass
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        root = tk._default_root
+                        if not root:
+                            root = tk.Tk(); root.withdraw(); root.destroy()
+                    except Exception:
+                        pass
+                return bool(ok)
+
+            # Choose different location
+            created_root = False
+            try:
+                root = tk._default_root
+                if not root:
+                    root = tk.Tk()
+                    root.withdraw()
+                    created_root = True
+            except Exception:
+                root = None
+            from tkinter import filedialog
+            save_path = ''
+            try:
+                save_path = filedialog.asksaveasfilename(title='Farklı konum seçin', defaultextension='.lnk', filetypes=[('Windows Kısayolu', '*.lnk')], initialdir=str(desktop), initialfile=f"{name}.lnk")
+            except Exception:
+                save_path = ''
+            if created_root and root:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
+            if not save_path:
+                return False
+            chosen = Path(save_path)
+            ok = create_windows_shortcut(target=target, shortcut_path=chosen, working_dir=target.parent if target.is_file() else None, icon=icon, hotkey=hotkey, description=name)
+            if ok:
+                try:
+                    s = forze.config.setdefault('settings', {})
+                    s['allow_desktop_shortcuts'] = True
+                    try:
+                        forze.save_config()
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            else:
+                try:
+                    root = tk._default_root
+                    if not root:
+                        root = tk.Tk(); root.withdraw(); root.destroy()
+                    messagebox.showerror('Kısayol oluşturulamadı', 'Kısayol oluşturulurken hata oluştu.')
+                except Exception:
+                    pass
+            return bool(ok)
+
+        # Not existing: create normally
+        ok = create_windows_shortcut(target=target, shortcut_path=shortcut_file, working_dir=target.parent if target.is_file() else None, icon=icon, hotkey=hotkey, description=name)
+        if ok:
+            try:
+                s = forze.config.setdefault('settings', {})
+                s['allow_desktop_shortcuts'] = True
+                try:
+                    forze.save_config()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        else:
+            logger.warning('create_desktop_shortcut_and_persist: creation failed')
+        return bool(ok)
+    except Exception:
+        logger.exception('create_desktop_shortcut_and_persist failed')
+        return False
